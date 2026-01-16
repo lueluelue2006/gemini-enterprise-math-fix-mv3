@@ -419,13 +419,58 @@
   const normalizeBareLatex = (latex) => {
     let out = latex;
 
+    if (!out || !out.includes('\\implies') || !out.includes('{')) return out;
+
     // If Gemini stripped the surrounding $...$ but kept the TeX command, Markdown may have
-    // consumed \\{ and \\} into literal braces. Restore set braces for KaTeX.
-    if (/\\implies/.test(out) && !out.includes('\\{') && out.includes('{') && out.includes('}')) {
-      out = out.replace(/\{([^}]*)\}/g, '\\{$1\\}');
+    // consumed \\{ and \\} into literal braces. Restore set braces for KaTeX only in the
+    // specific pattern: "\\implies { ... }". Never rewrite command arguments like
+    // "\\vec{v}" or subscripts like "_{k=1}".
+    const isEscaped = (s, idx) => idx > 0 && s[idx - 1] === '\\';
+
+    const findMatchingBrace = (s, start) => {
+      let depth = 0;
+      for (let i = start; i < s.length; i += 1) {
+        const ch = s[i];
+        if (ch === '{' && !isEscaped(s, i)) depth += 1;
+        if (ch === '}' && !isEscaped(s, i)) depth -= 1;
+        if (depth === 0) return i;
+      }
+      return -1;
+    };
+
+    const IMPLIES = '\\implies';
+    let rebuilt = '';
+    let cursor = 0;
+
+    while (cursor < out.length) {
+      const idx = out.indexOf(IMPLIES, cursor);
+      if (idx < 0) {
+        rebuilt += out.slice(cursor);
+        break;
+      }
+
+      rebuilt += out.slice(cursor, idx);
+      rebuilt += IMPLIES;
+
+      let i = idx + IMPLIES.length;
+      const wsStart = i;
+      while (i < out.length && /\s/.test(out[i])) i += 1;
+      rebuilt += out.slice(wsStart, i);
+
+      if (i < out.length && out[i] === '{' && !isEscaped(out, i)) {
+        const end = findMatchingBrace(out, i);
+        if (end > i) {
+          const inner = out.slice(i + 1, end);
+          rebuilt += `\\{${inner}\\}`;
+          cursor = end + 1;
+          continue;
+        }
+      }
+
+      cursor = i;
     }
 
-    return out;
+    return rebuilt;
   };
 
   const sanitizeLatexForKatex = (latex) => {
