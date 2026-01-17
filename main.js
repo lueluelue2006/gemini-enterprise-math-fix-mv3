@@ -2,7 +2,7 @@
 // @name         Gemini Enterprise Inline Math Fix
 // @namespace    https://github.com/lueluelue2006
 // @author       schweigen
-// @version      1.2.0
+// @version      1.2.1
 // @license      MIT
 // @description  Render inline and block math that appears as raw delimiters in Gemini Enterprise.
 // @match        https://business.gemini.google/*
@@ -15,7 +15,7 @@
 
   try {
     if (typeof unsafeWindow !== 'undefined') {
-      unsafeWindow.__geminiInlineMathFix = { version: '1.2.0' };
+      unsafeWindow.__geminiInlineMathFix = { version: '1.2.1' };
     }
   } catch (e) {
     // Ignore if unsafeWindow is blocked.
@@ -1309,6 +1309,74 @@
     }
   };
 
+  const cleanupMathDelimiterResidue = (root) => {
+    if (!root || typeof root.querySelectorAll !== 'function') return;
+
+    const isAllBackslashes = (text) => {
+      const t = typeof text === 'string' ? text : '';
+      if (!t.trim()) return false;
+      return /^[\\\s]+$/.test(t);
+    };
+
+    const trimTrailingBackslashes = (node) => {
+      if (!node) return false;
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        const v = node.nodeValue || '';
+        const replaced = v.replace(/\\+(\s*)$/, '$1');
+        if (replaced === v) return false;
+        node.nodeValue = replaced;
+        if (!node.nodeValue) node.parentNode?.removeChild(node);
+        return true;
+      }
+
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        if (isAllBackslashes(node.textContent || '')) {
+          node.remove();
+          return true;
+        }
+        const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+        let last = null;
+        let n;
+        while ((n = walker.nextNode())) last = n;
+        return trimTrailingBackslashes(last);
+      }
+
+      return false;
+    };
+
+    const trimLeadingBackslashes = (node) => {
+      if (!node) return false;
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        const v = node.nodeValue || '';
+        const replaced = v.replace(/^(\s*)\\+/, '$1');
+        if (replaced === v) return false;
+        node.nodeValue = replaced;
+        if (!node.nodeValue) node.parentNode?.removeChild(node);
+        return true;
+      }
+
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        if (isAllBackslashes(node.textContent || '')) {
+          node.remove();
+          return true;
+        }
+        const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+        const first = walker.nextNode();
+        return trimLeadingBackslashes(first);
+      }
+
+      return false;
+    };
+
+    const mathNodes = Array.from(root.querySelectorAll('.math-inline, .math-block'));
+    for (const el of mathNodes) {
+      trimTrailingBackslashes(el.previousSibling);
+      trimLeadingBackslashes(el.nextSibling);
+    }
+  };
+
   const processAll = () => {
     ensureRefreshButton();
 
@@ -1341,6 +1409,7 @@
         }
         processRoot(doc, katex);
         processTableRows(doc, katex);
+        cleanupMathDelimiterResidue(doc);
         processedDocs.add(doc);
       }
 
@@ -1351,6 +1420,7 @@
           if (patchedAt && Date.now() - patchedAt < PATCH_SKIP_WINDOW_MS) continue;
           processRoot(fm.shadowRoot, katex);
           processTableRows(fm.shadowRoot, katex);
+          cleanupMathDelimiterResidue(fm.shadowRoot);
           fm.shadowRoot.querySelectorAll('.markdown-document').forEach((d) => processedDocs.add(d));
         }
       }

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gemini Enterprise Math Fix",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Fix KaTeX / inline math rendering glitches on business.gemini.google",
   "permissions": ["scripting"],
   "host_permissions": ["https://business.gemini.google/*"],
@@ -9,4 +9,3 @@
     "service_worker": "sw.js"
   }
 }
-
