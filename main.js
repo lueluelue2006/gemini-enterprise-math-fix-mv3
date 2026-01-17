@@ -2,7 +2,7 @@
 // @name         Gemini Enterprise Inline Math Fix
 // @namespace    https://github.com/lueluelue2006
 // @author       schweigen
-// @version      1.2.1
+// @version      1.2.2
 // @license      MIT
 // @description  Render inline and block math that appears as raw delimiters in Gemini Enterprise.
 // @match        https://business.gemini.google/*
@@ -15,7 +15,7 @@
 
   try {
     if (typeof unsafeWindow !== 'undefined') {
-      unsafeWindow.__geminiInlineMathFix = { version: '1.2.1' };
+      unsafeWindow.__geminiInlineMathFix = { version: '1.2.2' };
     }
   } catch (e) {
     // Ignore if unsafeWindow is blocked.
@@ -1370,7 +1370,7 @@
       return false;
     };
 
-    const mathNodes = Array.from(root.querySelectorAll('.math-inline, .math-block'));
+    const mathNodes = Array.from(root.querySelectorAll('.math-inline, .math-block, [data-gemini-inline-math-fix]'));
     for (const el of mathNodes) {
       trimTrailingBackslashes(el.previousSibling);
       trimLeadingBackslashes(el.nextSibling);
